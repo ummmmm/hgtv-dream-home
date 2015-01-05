@@ -3,14 +3,16 @@
 import os
 import sys
 import json
+import time
+import datetime
 import requests
 import ConfigParser
 
 class HGTV:
-	def __init__( self, logging = True ):
+	def __init__( self, logging = False ):
 		self.users 		= []
 		self.logging 	= logging
-		self.debug		= open( os.path.join( os.path.abspath( os.path.dirname( sys.argv[ 0 ] ) ), 'debug.log' ), 'w+' )
+		self.debug		= open( os.path.join( os.path.abspath( os.path.dirname( sys.argv[ 0 ] ) ), 'debug.log' ), 'a' )
 
 	def __del__( self ):
 		self.debug.close()
@@ -20,15 +22,6 @@ class HGTV:
 
 	def create( self, user ):
 		month, day, year = user[ 'birthday' ].split( '/' )
-
-		headers	= {
-			'Accept' 			: 'application/json, text/javascript, */*; q=0.01',
-			'Accept-Encoding' 	: 'gzip, deflate',
-			'Accept-Language' 	: 'en-US,en;q=0.8',
-			'Content-Type' 		: 'application/json',
-			'User-Agent' 		: 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/39.0.2171.95 Safari/537.36',
-			'X-Requested-With'	: 'XMLHttpRequest'
-		}
 
 		data = {
 			'email':			user[ 'email' ],
@@ -47,54 +40,64 @@ class HGTV:
 			'age.birth_year':	year,
 			'cable_provider':	user[ 'cable_provider' ],
 			'country':			user[ 'country' ],
-			'x_channel':		'm'
 		}
 
-		self.log( 'Send POST request for {email}'.format( email = user[ 'email' ] ) )
+		self.log( 'Attempting to create user {email}'.format( email = user[ 'email' ] ) )
+		
+		response = requests.post( 'https://hgtv-dreamhome.promo.eprize.com/api/profiles', headers = { 'Content-Type': 'application/json' }, data = json.dumps( data ) )
 
-		# response = requests.post( 'https://hgtv-dreamhome.promo.eprize.com/api/profiles', headers = headers, data = json.dumps( data ) )
-
-		# self.log( 'Response code was {status_code}'.format( status_code = response.status_code ) )
+		if response.status_code == 409:
+			self.log( 'User {email} has already been created'.format( email = user[ 'email' ] ) )
+		elif response.status_code == 201:
+			self.log( 'User {email} has been created'.format( email = user[ 'email' ] ) )
+		else:
+			self.log( 'Unrecognized response code {status_code}'.format( status_code = response.status_code ) )
 
 	def vote( self, email, site ):
-		self.log( 'Sending GET request for {email}'.format( email = email ) )
+		self.log( 'Attempting to vote for user {email} on site {site}'.format( email = email, site = site ) )
 
 		response = requests.get( 'https://hgtv-dreamhome.promo.eprize.com/api/profiles/{email}?site={site}'.format( email = email, site = site ) )
 
-		self.log( 'Response code was {status_code}'.format( status_code = response.status_code ) )
+		if response.status_code == 200:
+			profile = json.loads( response.content )[ 'result' ][ 'profile' ]
 
-		if response.status_code != 200:
-			self.log( 'Could not vote with for {email} because status code was not valid'.format( email = email ) )
-			return
-
-		parse						= json.loads( response.content )
-		profile						= parse[ 'result' ][ 'profile' ]
-		profile[ 'email' ] 			= profile[ 'id' ]
-		profile[ 'favorite_show' ] 	= ''
-
-		self.log( 'Sending POST request for {email}'.format( email = email ) )
-
-		# response = requests.post( 'https://hgtv-dreamhome.promo.eprize.com/api/profiles/{email}'.format( email = email ), data = json.dumps( profile ) )
-
-		# self.log( 'Response code was {status_code}'.format( status_code = response.status_code ) )
+			if profile[ 'is_limited' ]:
+				self.log( 'Failed to vote for user {email} on site {site} because is_limited was True'.format( email = email, site = site ) )
+			else:
+				self.log( 'Successfully voted for user {email} on site {site}'.format( email = email, site = site ) )
+		else:
+			self.log( 'Failed to vote for user {email} on site {site}, response code {status_code}'.format( email = email, site = site, status_code = response.status_code ) )
 
 	def log( self, log ):
 		if self.logging:
-			self.debug.write( '{log}{separator}'.format( log = log, separator = os.linesep ) )
+			if log is None:
+				self.debug.write( os.linesep )
+			else:
+				timestamp = datetime.datetime.fromtimestamp( time.time() ).strftime( '%m/%d/%y:%H:%M:%S' )
+				self.debug.write( '{timestamp}: {log}{separator}'.format( timestamp = timestamp, log = log, separator = os.linesep ) )
 
 	def run( self ):
+		self.log( 'Running' )
+		self.log( None )
+
 		for user in self.users:
+			self.log( '{email}'.format( email = user[ 'email' ] ) )
 			self.create( user )
 			self.vote( user[ 'email' ], 'hgtv' )
 			self.vote( user[ 'email' ], 'frontdoor' )
+			self.log( None )
+
+		self.log( None )
 
 if __name__ == "__main__":
-	hgtv 		= HGTV()
-	config		= ConfigParser.RawConfigParser()
 	config_file = os.path.join( os.path.abspath( os.path.dirname( sys.argv[ 0 ] ) ), 'users.ini' )
+	config		= ConfigParser.RawConfigParser()
 	config.read( config_file )
 
-	for user in config.sections():
-		hgtv.add( config._sections[ user ] )
+	hgtv 		= HGTV( config.getboolean( 'settings', 'log' ) )
+
+	for section in config.sections():
+		if section != 'settings':
+			hgtv.add( config._sections[ section ] )
 
 	hgtv.run()
