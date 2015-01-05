@@ -1,0 +1,27 @@
+[bob]
+email: 			bob@gmail.com
+first_name: 	Bob
+last_name: 		Miller
+address: 		123 Lemon Grove
+city: 			Beverly Hills
+state: 			CA
+zip: 			90210
+phone_number: 	5555555555
+gender: 		Male
+birthday: 		1/1/1990
+cable_provider:	Cox
+country: 		US
+
+[marie]
+email: 			marie@hotmail.com
+first_name: 	Marie
+last_name: 		Miller
+address: 		123 Lemon Grove
+city: 			Beverly Hills
+state: 			CA
+zip: 			90210
+phone_number: 	5555555555
+gender: 		Female
+birthday: 		12/25/1975
+cable_provider:	Time Warner Cable
+country: 		US
