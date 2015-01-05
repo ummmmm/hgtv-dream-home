@@ -1,6 +1,8 @@
 hgtv-dream-home
 ===============
 
+Prerequisites: requests, use pip or easy_install
+
 Script that will automatically vote for the HGTV Dream Home.
 
 Rename users.ini.example to users.ini
