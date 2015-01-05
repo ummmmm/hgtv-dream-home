@@ -1,3 +1,6 @@
+[settings]
+log: false
+
 [bob]
 email: 			bob@gmail.com
 first_name: 	Bob
